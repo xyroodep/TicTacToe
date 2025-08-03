@@ -3,43 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tic Tac Toe</title>
+  <title>Tic Tac Toe vs Bot</title>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       text-align: center;
       background-color: #f0f0f0;
-      margin: 0;
-      padding-bottom: 60px;
+      min-height: 100vh;
     }
-    h1 {
-      margin-top: 20px;
-    }
+    h1 { margin: 20px 0; }
     .board {
       display: grid;
       grid-template-columns: repeat(3, 100px);
-      grid-gap: 5px;
+      gap: 5px;
       justify-content: center;
       margin-top: 30px;
     }
     .cell {
       width: 100px;
       height: 100px;
+      background: white;
+      border: 2px solid #333;
       font-size: 2.5em;
-      background-color: white;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      border: 2px solid #444;
       user-select: none;
-    }
-    .hidden {
-      display: none;
-    }
-    #resultImage {
-      width: 300px;
-      margin-top: 20px;
     }
     #restartBtn {
       margin-top: 20px;
@@ -47,99 +38,118 @@
       font-size: 1em;
       cursor: pointer;
     }
-    .credit {
+    .ending-overlay {
+      display: none;
       position: fixed;
-      bottom: 10px;
+      top: 0; left: 0;
       width: 100%;
-      text-align: center;
-      color: #555;
+      height: 100%;
+      background: black;
+      z-index: 999;
+    }
+    .ending-overlay img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .credit {
+      margin-top: 30px;
       font-size: 0.9em;
+      color: #555;
     }
   </style>
 </head>
 <body>
-  <h1>Tic Tac Toe</h1>
-  <div id="status">Player X's turn</div>
+  <h1>Tic Tac Toe vs Bot</h1>
+  <div id="status">Your turn (X)</div>
   <div class="board" id="board"></div>
   <button id="restartBtn" class="hidden">Start Again</button>
-  <img id="resultImage" class="hidden" src="https://files.catbox.moe/i6szqw.jpeg" alt="Result" />
-  <audio id="resultSound" src="https://files.catbox.moe/ot809t.mp3"></audio>
-
   <div class="credit">Game by <strong>Xyroo</strong></div>
+
+  <!-- Fullscreen Ending -->
+  <div class="ending-overlay" id="endingOverlay">
+    <img src="https://files.catbox.moe/i6szqw.jpeg" alt="Ending">
+    <audio id="endingSound" src="https://files.catbox.moe/ot809t.mp3" loop autoplay></audio>
+  </div>
 
   <script>
     const board = document.getElementById("board");
     const status = document.getElementById("status");
     const restartBtn = document.getElementById("restartBtn");
-    const resultImage = document.getElementById("resultImage");
-    const resultSound = document.getElementById("resultSound");
+    const endingOverlay = document.getElementById("endingOverlay");
+    const endingSound = document.getElementById("endingSound");
 
     let cells = [];
-    let currentPlayer = "X";
     let gameOver = false;
 
     function checkWinner() {
-      const winPatterns = [
+      const combos = [
         [0,1,2],[3,4,5],[6,7,8],
         [0,3,6],[1,4,7],[2,5,8],
         [0,4,8],[2,4,6]
       ];
-      for (const pattern of winPatterns) {
-        const [a, b, c] = pattern;
-        if (cells[a].textContent &&
-            cells[a].textContent === cells[b].textContent &&
-            cells[a].textContent === cells[c].textContent) {
-          return cells[a].textContent;
-        }
+      for (let combo of combos) {
+        const [a, b, c] = combo;
+        if (
+          cells[a].textContent &&
+          cells[a].textContent === cells[b].textContent &&
+          cells[a].textContent === cells[c].textContent
+        ) return cells[a].textContent;
       }
       if ([...cells].every(cell => cell.textContent)) return "Draw";
       return null;
     }
 
-    function handleClick(e) {
-      if (gameOver || e.target.textContent) return;
-      e.target.textContent = currentPlayer;
+    function botMove() {
+      if (gameOver) return;
+      const emptyCells = cells.filter(c => c.textContent === "");
+      if (emptyCells.length === 0) return;
+      const randCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+      randCell.textContent = "O";
       const result = checkWinner();
-      if (result) {
-        gameOver = true;
-        if (result === "Draw") {
-          status.textContent = "It's a draw!";
-        } else {
-          status.textContent = `${result} wins!`;
-        }
-        restartBtn.classList.remove("hidden");
-      } else {
-        currentPlayer = currentPlayer === "X" ? "O" : "X";
-        status.textContent = `Player ${currentPlayer}'s turn`;
+      if (result) endGame(result);
+      else status.textContent = "Your turn (X)";
+    }
+
+    function handleClick(e) {
+      const cell = e.target;
+      if (gameOver || cell.textContent !== "") return;
+      cell.textContent = "X";
+      const result = checkWinner();
+      if (result) endGame(result);
+      else {
+        status.textContent = "Bot thinking...";
+        setTimeout(botMove, 500);
       }
     }
+
+    function endGame(result) {
+      gameOver = true;
+      if (result === "Draw") {
+        status.textContent = "It's a draw!";
+      } else {
+        status.textContent = `${result} wins!`;
+      }
+      restartBtn.classList.remove("hidden");
+    }
+
+    restartBtn.addEventListener("click", () => {
+      // Show full screen ending and loop music
+      endingOverlay.style.display = "block";
+      endingSound.play();
+    });
 
     function createBoard() {
       board.innerHTML = "";
       cells = [];
       for (let i = 0; i < 9; i++) {
         const cell = document.createElement("div");
-        cell.classList.add("cell");
+        cell.className = "cell";
         cell.addEventListener("click", handleClick);
         board.appendChild(cell);
         cells.push(cell);
       }
     }
-
-    restartBtn.addEventListener("click", () => {
-      resultImage.classList.remove("hidden");
-      resultSound.currentTime = 0;
-      resultSound.play();
-
-      setTimeout(() => {
-        resultImage.classList.add("hidden");
-        restartBtn.classList.add("hidden");
-        gameOver = false;
-        currentPlayer = "X";
-        status.textContent = "Player X's turn";
-        createBoard();
-      }, 2000);
-    });
 
     createBoard();
   </script>
